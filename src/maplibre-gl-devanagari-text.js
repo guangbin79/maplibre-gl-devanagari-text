@@ -13,7 +13,7 @@ async function prepare() {
     hb = hbjs(wasmInstance.instance);
 
     const binaryString = atob(base64Font);
-    
+
     const fontBlob = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         fontBlob[i] = binaryString.charCodeAt(i);
@@ -26,12 +26,12 @@ async function prepare() {
     font.setScale(1000, 1000);
 
     const encodingLines = encodingCSV.split('\n');
-    
+
     for (var line of encodingLines.slice(1)) {
         const [index, x_offset, y_offset, x_advance, y_advance, codepoint] = line.split(',');
         encoding[`${index}/${x_offset}/${y_offset}/${x_advance}/${y_advance}`] = +codepoint;
     }
-    
+
     self.registerRTLTextPlugin({
         'applyArabicShaping': applyArabicShaping,
         'processBidirectionalText': processBidirectionalText,
@@ -76,7 +76,7 @@ function shape(text) {
     var buffer = hb.createBuffer();
     buffer.addText(text);
     buffer.guessSegmentProperties();
-    hb.shape(font, buffer); 
+    hb.shape(font, buffer);
 
     return buffer.json(font);
 }
@@ -92,8 +92,8 @@ function encode(text) {
     return result;
 }
 
-function breakStringIntoDevanagariParts(input) {
-    const regex = /(\p{Script=Devanagari}+|[^\p{Script=Devanagari}]+)/gu;
+function breakStringIntoDevanagariOrKhmerParts(input) {
+    const regex = /(\p{Script=Devanagari}+|\p{Script=Khmer}+|[^\p{Script=Devanagari}\p{Script=Khmer}]+)/gu;
     return input.match(regex);
 }
 
@@ -102,14 +102,22 @@ function isDevanagari(str) {
     return devanagariRegex.test(str);
 }
 
+function isKhmer(str) {
+    const khmerRegex = /^[\p{Script=Khmer}]+$/u;
+    return khmerRegex.test(str);
+}
+
 function applyArabicShaping(input) {
     var result = '';
-    var parts = breakStringIntoDevanagariParts(input);
+    var parts = breakStringIntoDevanagariOrKhmerParts(input);
     if (!parts) {
         return input;
     }
     for (var part of parts) {
         if (isDevanagari(part)) {
+            result += encode(part);
+        }
+        else if (isKhmer(part)) {
             result += encode(part);
         }
         else {
